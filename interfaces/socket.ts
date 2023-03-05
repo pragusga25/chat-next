@@ -12,6 +12,7 @@ interface SocketWithIO extends NetSocket {
 }
 
 export type MessageIO = Record<'username' | 'message' | 'id', string>;
+export type MessageIOAI = Record<'username' | 'message' | 'id' | 'to', string>;
 
 export interface NextApiResponseSocket extends NextApiResponse {
   socket: SocketWithIO;

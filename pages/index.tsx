@@ -3,7 +3,7 @@ import Head from 'next/head';
 import io, { Socket } from 'socket.io-client';
 import { useEffect, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { MessageIO } from '@/interfaces';
+import { MessageIO, MessageIOAI } from '@/interfaces';
 
 let socket: Socket;
 
@@ -12,6 +12,7 @@ const Home: NextPage = () => {
   const [showRoom, setShowRoom] = useState(false);
   const [messages, setMessages] = useState<MessageIO[]>([]);
   const [message, setMessage] = useState('');
+  const [priv, setPriv] = useState(false);
   const chatBox = useRef<HTMLDivElement>(null);
 
   const initSocket = async () => {
@@ -19,6 +20,13 @@ const Home: NextPage = () => {
     socket = io();
 
     socket.on('newIncomingMessage', (msg: MessageIO) => {
+      setMessages((prev) => [msg, ...prev]);
+      console.log(msg);
+    });
+
+    socket.on('messageFromAI', (msg: MessageIOAI) => {
+      if (msg.to !== username) return;
+
       setMessages((prev) => [msg, ...prev]);
       console.log(msg);
     });
@@ -31,7 +39,7 @@ const Home: NextPage = () => {
   }, [showRoom]);
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full px-4 md:px-0">
       <Toaster position="top-center" reverseOrder={false} />
       <Head>
         <title>Taufik Pragusga - 2006595980</title>
@@ -51,6 +59,7 @@ const Home: NextPage = () => {
                 return toast.error('username is too short');
               }
 
+              setUsername((prev) => prev + '#' + new Date().getTime());
               setShowRoom(true);
             }}
           >
@@ -60,14 +69,16 @@ const Home: NextPage = () => {
               placeholder="Enter your username"
               value={username}
               onChange={(e) => {
-                setUsername(e.target.value);
+                let uname = e.target.value.replaceAll('#', '');
+                uname.replaceAll(' ', '');
+                setUsername(uname);
               }}
               autoFocus
               className="w-96 h-10 border border-black rounded-sm py-2 px-3"
             />
             <button
               type="submit"
-              className="rounded text-lg font-bold bg-green-400 p-4 text-black mt-4"
+              className="rounded text-lg font-bold bg-green-400 py-2 text-black mt-4"
             >
               Join Chat!
             </button>
@@ -83,6 +94,7 @@ const Home: NextPage = () => {
           >
             {messages.map(({ message, username: u, id }) => {
               const isMine = u === username;
+              const uname = u.split('#')[0];
               return (
                 <div
                   key={id}
@@ -94,7 +106,7 @@ const Home: NextPage = () => {
                     } w-fit`}
                   >
                     <div className="text-sm font-bold text-gray-200">
-                      <span>{u}</span>
+                      <span>{uname}</span>
                     </div>
                     <div className="text-base font-semibold text-white">
                       <p>{message}</p>
@@ -116,12 +128,15 @@ const Home: NextPage = () => {
                 message,
                 id: username + message + new Date().getTime(),
               };
-              socket.emit('createdMessage', newMsg);
               setMessages((prev) => [newMsg, ...prev]);
               setMessage('');
               chatBox.current?.scrollIntoView({
                 behavior: 'smooth',
               });
+
+              if (!priv) {
+                socket.emit('createdMessage', newMsg);
+              }
             }}
           >
             <input
@@ -135,6 +150,7 @@ const Home: NextPage = () => {
               className="w-full h-full border border-black rounded-lg py-2 px-3"
               autoFocus
             />
+
             <button
               disabled={!message}
               type="submit"
@@ -143,6 +159,14 @@ const Home: NextPage = () => {
               Send
             </button>
           </form>
+          <button
+            onClick={() => setPriv((prev) => !prev)}
+            className={`rounded-lg w-full text-lg font-bold ${
+              priv ? 'bg-yellow-400' : 'bg-blue-400'
+            } py-2 px-3 text-black mb-3`}
+          >
+            {priv ? 'Private' : 'Public'}
+          </button>
         </main>
       )}
     </div>
